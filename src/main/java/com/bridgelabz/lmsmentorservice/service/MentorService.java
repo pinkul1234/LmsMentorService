@@ -5,9 +5,11 @@ import com.bridgelabz.lmsmentorservice.dto.MentorDto;
 import com.bridgelabz.lmsmentorservice.exception.MentorNotFoundException;
 import com.bridgelabz.lmsmentorservice.model.MentorModel;
 import com.bridgelabz.lmsmentorservice.repository.MentorRepository;
+import com.bridgelabz.lmsmentorservice.util.Response;
 import com.bridgelabz.lmsmentorservice.util.TokenUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,45 +22,49 @@ public class MentorService implements IMentorService {
     TokenUtil tokenUtil;
     @Autowired
     MailService mailService;
+    @Autowired
+    RestTemplate restTemplate;
 
     @Override
-    public MentorModel addMentor(String token, MentorDto mentorDto) {
-        long userId = tokenUtil.decodeToken(token);
-        Optional<MentorModel> isMentorPresent = mentorRepository.findById(userId);
-        if (isMentorPresent.isPresent()) {
+    public Response addMentor(String token, MentorDto mentorDto) {
+        boolean isMentorPresent = restTemplate.getForObject("http://localhost:8082/admin/validate/" + token, Boolean.class);
+        if (isMentorPresent) {
             MentorModel mentorModel = new MentorModel(mentorDto);
             mentorRepository.save(mentorModel);
-            return mentorModel;
+            String body = "Mentor added sucessfully " + mentorModel.getId();
+            String subject = "Mentor registration completed";
+            mailService.send(mentorModel.getEmail(), body, subject);
+            return new Response("Success", 200, mentorModel);
         }
         throw new MentorNotFoundException(400, "Mentor Added Unsuccessfull");
     }
 
     @Override
-    public MentorModel updateMentor(long id, String token, MentorDto mentorDto) {
-        long userId = tokenUtil.decodeToken(token);
-        Optional<MentorModel> isAdminPresent = mentorRepository.findById(userId);
-        if (isAdminPresent.isPresent()) {
-            Optional<MentorModel> isMentorPresent = mentorRepository.findById(id);
-            if (isMentorPresent.isPresent()) {
-                isMentorPresent.get().setEmployeeId(mentorDto.getEmployeeId());
-                isMentorPresent.get().setFirstName(mentorDto.getFirstName());
-                isMentorPresent.get().setLastName(mentorDto.getLastName());
-                isMentorPresent.get().setMentorType(mentorDto.getMentorType());
-                isMentorPresent.get().setMentorRole(mentorDto.getMentorRole());
-                isMentorPresent.get().setMobileNumber(mentorDto.getMobileNumber());
-                isMentorPresent.get().setEmail(mentorDto.getEmail());
-                isMentorPresent.get().setExperienceYears(mentorDto.getExperienceYears());
-                isMentorPresent.get().setPreferredTime(mentorDto.getPreferredTime());
-                isMentorPresent.get().setStartDate(mentorDto.getStartDate());
-                isMentorPresent.get().setStatus(mentorDto.getStatus());
-                isMentorPresent.get().setMentorDescription(mentorDto.getMentorDescription());
-                isMentorPresent.get().setProfileImageUrl(mentorDto.getProfileImageUrl());
-                isMentorPresent.get().setCreatorUser(mentorDto.getCreatorUser());
-                isMentorPresent.get().setSupervisorId(mentorDto.getSupervisorId());
-                isMentorPresent.get().setCreatedTimeStamp(mentorDto.getCreatedTimeStamp());
-                isMentorPresent.get().setUpdatedTimeStamp(mentorDto.getUpdatedTimeStamp());
-                mentorRepository.save(isMentorPresent.get());
-                return isMentorPresent.get();
+    public Response updateMentor(long id, String token, MentorDto mentorDto) {
+        boolean isMentorPresent = restTemplate.getForObject("http://localhost:8082/admin/validate/" + token, Boolean.class);
+
+        if (isMentorPresent) {
+            Optional<MentorModel> isMentor = mentorRepository.findById(id);
+            if (isMentor.isPresent()) {
+                isMentor.get().setEmployeeId(mentorDto.getEmployeeId());
+                isMentor.get().setFirstName(mentorDto.getFirstName());
+                isMentor.get().setLastName(mentorDto.getLastName());
+                isMentor.get().setMentorType(mentorDto.getMentorType());
+                isMentor.get().setMentorRole(mentorDto.getMentorRole());
+                isMentor.get().setMobileNumber(mentorDto.getMobileNumber());
+                isMentor.get().setEmail(mentorDto.getEmail());
+                isMentor.get().setExperienceYears(mentorDto.getExperienceYears());
+                isMentor.get().setPreferredTime(mentorDto.getPreferredTime());
+                isMentor.get().setStartDate(mentorDto.getStartDate());
+                isMentor.get().setStatus(mentorDto.getStatus());
+                isMentor.get().setMentorDescription(mentorDto.getMentorDescription());
+                isMentor.get().setProfileImageUrl(mentorDto.getProfileImageUrl());
+                isMentor.get().setCreatorUser(mentorDto.getCreatorUser());
+                isMentor.get().setSupervisorId(mentorDto.getSupervisorId());
+                isMentor.get().setCreatedTimeStamp(mentorDto.getCreatedTimeStamp());
+                isMentor.get().setUpdatedTimeStamp(mentorDto.getUpdatedTimeStamp());
+                mentorRepository.save(isMentor.get());
+                return new Response("Success", 200, isMentor.get());
             }
             throw new MentorNotFoundException(400, "Mentor Not Found");
         }
@@ -68,25 +74,23 @@ public class MentorService implements IMentorService {
 
     @Override
     public List<MentorModel> getMentorData(String token) {
-        long userId = tokenUtil.decodeToken(token);
-        Optional<MentorModel> isCandidatePresent = mentorRepository.findById(userId);
-        if (isCandidatePresent.isPresent()) {
-            List<MentorModel> getAllMentors = mentorRepository.findAll();
-            return getAllMentors;
+        boolean isMentorPresent = restTemplate.getForObject("http://localhost:8082/admin/validate/" + token, Boolean.class);
+        if (isMentorPresent) {
+            List<MentorModel> isMentor = mentorRepository.findAll();
+            return isMentor;
         } else {
             throw new MentorNotFoundException(400, "Mentor Not Available");
         }
     }
 
     @Override
-    public MentorModel getDeleteMentor(long id, String token) {
-        long userId = tokenUtil.decodeToken(token);
-        Optional<MentorModel> isAdmin = mentorRepository.findById(userId);
-        if (isAdmin.isPresent()) {
-            Optional<MentorModel> isMentorPresent = mentorRepository.findById(id);
-            if (isMentorPresent.isPresent()) {
-                mentorRepository.delete(isMentorPresent.get());
-                return isMentorPresent.get();
+    public Response getDeleteMentor(long id, String token) {
+        boolean isMentorPresent = restTemplate.getForObject("http://localhost:8082/admin/validate/" + token, Boolean.class);
+        if (isMentorPresent) {
+            Optional<MentorModel> isMentor = mentorRepository.findById(id);
+            if (isMentor.isPresent()) {
+                mentorRepository.delete(isMentor.get());
+                return new Response("success", 200, isMentor.get());
             }
             throw new MentorNotFoundException(400, "Mentor does not found");
         }
@@ -95,14 +99,16 @@ public class MentorService implements IMentorService {
 
 
     @Override
-    public List<MentorModel> fetchDetail(String token) {
-        long userId = tokenUtil.decodeToken(token);
-        List<MentorModel> isMentorId = mentorRepository.findByAllId(userId);
-        if (isMentorId.isEmpty()) {
-            throw new MentorNotFoundException(400, "Mentor not found");
-        } else {
-            return isMentorId;
+    public Response getMentorsDetailsById(String token, long id) {
+        boolean isMentorPresent = restTemplate.getForObject("http://localhost:8082/admin/validate/" + token, Boolean.class);
+        if (isMentorPresent) {
+            Optional<MentorModel> isMentor = mentorRepository.findById(id);
+            if (isMentor.isPresent()) {
+                return new Response("success", 200, isMentor);
+            } else {
+                throw new MentorNotFoundException(400, "Mentor not found");
+            }
         }
+        throw new MentorNotFoundException(400, "not found");
     }
-
 }
